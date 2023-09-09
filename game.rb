@@ -3,30 +3,27 @@ class Game
     @scheduler = Scheduler.new
     @matrix = Matrix.new
     @joy_stick = JoyStick.new
+    @sound = Sound.new(330)
     @score = 0
-    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 262)
-    next_target
     @hit = false
+    next_target
   end
 
   def start
     @matrix.clear
     @matrix.display
 
-    @pwm.duty(50)
-    ESP32::System.delay(1000)
-    @pwm.duty(0)
-    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 330)
+    Sound.new(262).play
   end
 
   def judge
-    @pwm.duty(0) if @hit
+    @sound.stop if @hit
 
     x, y = @joy_stick.read
 
     @hit = @target.shot(x, y)
     if @hit
-      @pwm.duty(50)
+      @sound.start
       next_target
       @score += 1
     end
@@ -39,10 +36,7 @@ class Game
     @matrix.clear
     @matrix.display
 
-    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 494)
-    @pwm.duty(50)
-    ESP32::System.delay(1000)
-    @pwm.duty(0)
+    Sound.new(494).play
     ESP32::System.delay(500)
 
     @matrix.display_result(@score)
@@ -71,6 +65,7 @@ class Game
     @scheduler.add_task(20000) do
       finish
     end
+
     @scheduler.run
   end
 end
