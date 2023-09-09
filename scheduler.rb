@@ -1,5 +1,5 @@
 class Scheduler
-  PERIOD = 20
+  PERIOD = 25
 
   def initialize
     @tasks = []

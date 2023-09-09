@@ -4,7 +4,49 @@ class Game
     @matrix = Matrix.new
     @joy_stick = JoyStick.new
     @score = 0
+    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 262)
     next_target
+    @hit = false
+  end
+
+  def start
+    @matrix.clear
+    @matrix.display
+
+    @pwm.duty(50)
+    ESP32::System.delay(1000)
+    @pwm.duty(0)
+    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 330)
+  end
+
+  def judge
+    @pwm.duty(0) if @hit
+
+    x, y = @joy_stick.read
+
+    @hit = @target.shot(x, y)
+    if @hit
+      @pwm.duty(50)
+      next_target
+      @score += 1
+    end
+
+    @matrix.clear
+    @matrix.update_rectangle(x, y, x + 1, y + 1)
+  end
+
+  def finish
+    @matrix.clear
+    @matrix.display
+
+    @pwm = PWM.new(ESP32::GPIO_NUM_2, freq: 494)
+    @pwm.duty(50)
+    ESP32::System.delay(1000)
+    @pwm.duty(0)
+    ESP32::System.delay(500)
+
+    @matrix.display_result(@score)
+    @scheduler.resume
   end
 
   def next_target
@@ -14,27 +56,20 @@ class Game
   end
 
   def play
-    @scheduler.add_task(20) do
+    start
+
+    @scheduler.add_task(25) do
       @matrix.display
     end
-    @scheduler.add_task(40) do
-      x, y = @joy_stick.read
-
-      if @target.shot(x, y)
-        next_target
-        @score += 1
-      end
-
-      @matrix.clear
-      @matrix.update_rectangle(x, y, x + 1, y + 1)
+    @scheduler.add_task(50) do
+      judge
     end
     @scheduler.add_task(100) do
       x, y, on = @target.blink
       @matrix.update_point(x, y, on)
     end
     @scheduler.add_task(20000) do
-      @matrix.display_result(@score)
-      @scheduler.resume
+      finish
     end
     @scheduler.run
   end
